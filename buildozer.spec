@@ -1,46 +1,72 @@
-[app]
+name: Build APK
 
-# (str) Title of your application
-title = AI Trader
+on:
+  push:
+    branches: [ main ]
 
-# (str) Version of your application
-version = 0.1
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-# (str) Package name
-package.name = aitrader
+    steps:
+    - uses: actions/checkout@v3
 
-# (str) Package domain (needed for android packaging)
-package.domain = org.aitrader
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
 
-# (list) Source files to include (let it blank to include all files)
-source.dir = .
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
 
-# (list) Source files to exclude (let it blank to exclude none)
-source.exclude_exts = spec
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
 
-# (list) List of inclusions using pattern matching
-source.include_exts = py,png,jpg,kv,atlas
+    - name: Install Android SDK packages
+      run: |
+        yes | sdkmanager --licenses || true
+        sdkmanager "platform-tools"
+        sdkmanager "platforms;android-33"
+        sdkmanager "build-tools;33.0.2"
+        sdkmanager "build-tools;37.0.0"
+        yes | sdkmanager --licenses || true
 
-# (list) Application requirements
-requirements = python3,kivy,numpy,websocket-client
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+            build-essential \
+            git \
+            python3-pip \
+            libffi-dev \
+            libssl-dev \
+            zlib1g-dev \
+            autoconf \
+            libtool \
+            pkg-config \
+            libncurses5-dev \
+            libncursesw5-dev \
+            unzip \
+            zip \
+            libltdl-dev
 
-# (str) Supported orientations
-orientation = portrait
+    - name: Install Buildozer and Cython
+      run: |
+        pip install --upgrade pip
+        pip install --user cython==0.29.36
+        pip install --user buildozer
 
-# (list) Permissions
-android.permissions = INTERNET
+    - name: Run Buildozer
+      run: |
+        export PATH=$PATH:~/.local/bin
+        buildozer -v android debug
 
-# (int) Target Android API
-android.api = 33
-
-# (int) Minimum API your APK will support
-android.minapi = 21
-
-# (str) Android SDK version to use
-android.sdk = 33
-
-# (str) Android NDK version to use
-android.ndk = 25b
-
-# (str) Android build mode (debug or release)
-android.build_mode = debug
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: package
+        path: bin/*.apk
+        
