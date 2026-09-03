@@ -1,5 +1,6 @@
 [app]
 title = AI Trader
+version = 0.1
 package.name = aitrader
 package.domain = org.aitrader
 source.dir = .
