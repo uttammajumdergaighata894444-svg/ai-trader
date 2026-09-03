@@ -2,7 +2,6 @@ import json
 import threading
 import time
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
 import websocket
 
 # Kivy লাইব্রেরি মোবাইল অ্যাপের ইউজার ইন্টারফেসের জন্য
@@ -84,26 +83,38 @@ class FeatureEngineering:
     return [current_price, sma_5, rsi_14]
 
 
-# ৩. এআই অ্যানালিটিক্স ইঞ্জিন
+# ৩. লাইটওয়েট এআই অ্যানালিটিক্স ইঞ্জিন (Android Friendly)
 class AIAnalyticsEngine:
 
   def __init__(self):
-    self.model = RandomForestClassifier(n_estimators=100)
-    self.is_trained = False
-
-  def train_model(self, historical_features, labels):
-    self.model.fit(historical_features, labels)
     self.is_trained = True
 
-  def predict_signal(self, current_market_features):
-    if not self.is_trained:
+  def predict_signal(self, features):
+    current_price, sma_5, rsi_14 = features
+
+    if current_price <= 0:
       return {"signal": 0, "confidence": 0.0}
-    prediction = self.model.predict([current_market_features])
-    probability = self.model.predict_proba([current_market_features])
-    return {
-        "signal": int(prediction[0]),
-        "confidence": float(np.max(probability)),
-    }
+
+    score = 0.0
+
+    # Price vs SMA
+    if current_price > sma_5:
+      score += 0.4
+    else:
+      score -= 0.2
+
+    # RSI
+    if 45 <= rsi_14 <= 65:
+      score += 0.3
+    elif rsi_14 < 30:
+      score += 0.2
+    elif rsi_14 > 70:
+      score -= 0.3
+
+    if score >= 0.5:
+      return {"signal": 1, "confidence": min(0.95, 0.60 + score * 0.35)}
+
+    return {"signal": 0, "confidence": min(0.95, 0.50 + abs(score) * 0.20)}
 
 
 # ৪. রিস্ক ম্যানেজমেন্ট ও পজিশন সাইজিং
@@ -162,7 +173,7 @@ class FinancialLedger:
     }
 
 
-# ৬. মোবাইল অ্যাপ ইউজার ইন্টারফেস (Kivy GUI + Voice & Ledger Integration)
+# ৬. মোবাইল অ্যাপ ইউজার ইন্টারফেস (Kivy GUI + Paper Trading)
 class TradingAppLayout(BoxLayout):
 
   def __init__(self, **kwargs):
@@ -170,6 +181,10 @@ class TradingAppLayout(BoxLayout):
     self.orientation = "vertical"
     self.padding = 20
     self.spacing = 10
+
+    # Duplicate trade prevention flags
+    self.position_open = False
+    self.last_signal_time = 0
 
     self.status_label = Label(
         text="AI Trading Bot: Idle", font_size=18, size_hint_y=None, height=50
@@ -193,7 +208,7 @@ class TradingAppLayout(BoxLayout):
     self.add_widget(self.balance_label)
 
     self.voice_btn = Button(
-        text="🎤 Tap to Speak Voice Command",
+        text="🎤 Voice Command Ready",
         size_hint_y=None,
         height=60,
         background_color=(0.1, 0.6, 0.8, 1),
@@ -202,14 +217,15 @@ class TradingAppLayout(BoxLayout):
     self.add_widget(self.voice_btn)
 
     self.log_input = TextInput(
-        text="System initialized successfully.\n", readonly=True, font_size=14
+        text="System initialized successfully (Paper Trading Mode).\n",
+        readonly=True,
+        font_size=14,
     )
     self.add_widget(self.log_input)
 
     self.ledger = FinancialLedger(initial_balance=5000.0)
     self.risk_mgr = RiskManagementSystem(max_risk_per_trade_pct=0.01)
     self.ai_engine = AIAnalyticsEngine()
-    self.train_ai()
 
     self.pipeline = MarketDataPipeline(
         "wss://stream.binance.com:9443/ws/btcusdt@trade"
@@ -219,30 +235,15 @@ class TradingAppLayout(BoxLayout):
 
     Clock.schedule_interval(self.update_dashboard, 1.0)
 
-  def train_ai(self):
-    X_train = [
-        [58000, 57800, 45.5],
-        [59000, 58900, 60.2],
-        [60000, 59500, 70.1],
-        [59500, 59600, 40.0],
-    ]
-    y_train = [1, 1, 0, 1]
-    self.ai_engine.train_model(X_train, y_train)
-
   def speak_message(self, message):
-    print(f"[Voice Chat / Output]: {message}")
-    self.log_input.text += f"\n[Voice]: {message}"
+    print(f"[Log / Output]: {message}")
+    self.log_input.text += f"\n[System]: {message}"
 
   def listen_voice_command(self, instance):
     spoken_command = "start"
     self.log_input.text += f"\n[Voice Input Detected]: {spoken_command}"
-
-    if "start" in spoken_command or "চালু" in spoken_command:
-      self.status_label.text = "Status: Running via Voice Command!"
-      self.speak_message("Bot activated by voice command.")
-    elif "stop" in spoken_command or "বন্ধ" in spoken_command:
-      self.status_label.text = "Status: Stopped by Voice."
-      self.speak_message("Bot stopped by voice command.")
+    self.status_label.text = "Status: Running via Voice Command!"
+    self.speak_message("Bot activated.")
 
   def update_dashboard(self, dt):
     if self.pipeline.price_history:
@@ -255,7 +256,15 @@ class TradingAppLayout(BoxLayout):
         )
         signal = self.ai_engine.predict_signal(features)
 
-        if signal["signal"] == 1 and signal["confidence"] > 0.6:
+        # Check signal along with position guard to avoid spamming trades
+        if (
+            signal["signal"] == 1
+            and signal["confidence"] > 0.6
+            and not self.position_open
+        ):
+          self.position_open = True
+          self.last_signal_time = time.time()
+
           self.status_label.text = (
               f"Signal: BUY (Conf: {signal['confidence']:.2f})"
           )
@@ -274,9 +283,13 @@ class TradingAppLayout(BoxLayout):
           self.balance_label.text = (
               f"Balance: ${trade_res['closing_balance']:.2f}"
           )
-          self.speak_message("Buy signal executed and ledger updated.")
+          self.speak_message("Buy signal executed and paper ledger updated.")
+        elif self.position_open:
+          self.status_label.text = (
+              "Status: Position Active (Holding / Monitoring)"
+          )
         else:
-          self.status_label.text = "Status: Holding... No high signal."
+          self.status_label.text = "Status: Monitoring market... No signal."
 
 
 class AutonomousTradingApp(App):
