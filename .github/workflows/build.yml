@@ -32,7 +32,6 @@ jobs:
             pkg-config \
             libncurses5-dev \
             libncursesw5-dev \
-            libtinfo5 \
             unzip \
             zip \
             libltdl-dev
