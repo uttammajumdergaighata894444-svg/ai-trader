@@ -1,47 +1,55 @@
-[app]
+name: Build APK
 
-# (str) Title of your application
-title = AI Trader
+on:
+  push:
+    branches: [ main ]
 
-# (str) Package name
-package.name = aitrader
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-# (str) Package domain (needed for android packaging)
-package.domain = org.aitrader
+    steps:
+    - uses: actions/checkout@v3
 
-# (list) Source files to include (let it blank to include all files)
-source.dir = .
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
 
-# (list) Source files to exclude (let it blank to exclude none)
-source.exclude_exts = spec
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+            build-essential \
+            git \
+            python3-pip \
+            libffi-dev \
+            libssl-dev \
+            zlib1g-dev \
+            openjdk-17-jdk \
+            autoconf \
+            libtool \
+            pkg-config \
+            libncurses5-dev \
+            libncursesw5-dev \
+            unzip \
+            zip \
+            libltdl-dev
 
-# (list) List of inclusions using pattern matching
-source.include_exts = py,png,jpg,kv,atlas
+    - name: Install Buildozer and Cython
+      run: |
+        pip install --upgrade pip
+        pip install --user cython==0.29.36
+        pip install --user buildozer
 
-# (list) Application requirements
-# comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy,numpy,scikit-learn,websocket-client
+    - name: Run Buildozer
+      run: |
+        export PATH=$PATH:~/.local/bin
+        buildozer -v android debug
 
-# (str) Supported orientations
-orientation = portrait
-
-# (list) Permissions
-android.permissions = INTERNET
-
-# (int) Target Android API, should be as high as possible.
-android.api = 33
-
-# (int) Minimum API your APK will support.
-android.minapi = 21
-
-# (str) Android SDK version to use
-android.sdk = 33
-
-# (str) Android NDK version to use
-android.ndk = 25b
-
-# (bool) Use the Android NDK instead of the SDK (deprecated)
-# android.use_ndk = True
-
-# (str) Android build mode (debug or release)
-android.build_mode = debug
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: package
+        path: bin/*.apk
+        
