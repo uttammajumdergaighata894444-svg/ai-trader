@@ -286,5 +286,6 @@ class AutonomousTradingApp(App):
     return TradingAppLayout()
 
 
-If __name__ == "__main__":
+if __name__ == "__main__":
   AutonomousTradingApp().run()
+  
