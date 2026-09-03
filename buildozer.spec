@@ -3,6 +3,9 @@
 # (str) Title of your application
 title = AI Trader
 
+# (str) Version of your application
+version = 0.1
+
 # (str) Package name
 package.name = aitrader
 
