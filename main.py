@@ -4,17 +4,15 @@ import time
 import numpy as np
 import websocket
 
-# Kivy লাইব্রেরি মোবাইল অ্যাপের ইউজার ইন্টারফেসের জন্য
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
-from kivy.utils import platform
 
 
-# ১. রিয়েল-টাইম ডেটা পাইপলাইন (Binance Live WebSocket Integration)
+# ১. রিয়েল-টাইম ডেটা পাইপলাইন (Binance Live WebSocket)
 class MarketDataPipeline:
 
   def __init__(self, ws_url):
@@ -83,7 +81,7 @@ class FeatureEngineering:
     return [current_price, sma_5, rsi_14]
 
 
-# ৩. লাইটওয়েট এআই অ্যানালিটিক্স ইঞ্জিন (Android Friendly)
+# ৩. লাইটওয়েট এআই অ্যানালিটিক্স ইঞ্জিন
 class AIAnalyticsEngine:
 
   def __init__(self):
@@ -91,19 +89,15 @@ class AIAnalyticsEngine:
 
   def predict_signal(self, features):
     current_price, sma_5, rsi_14 = features
-
     if current_price <= 0:
       return {"signal": 0, "confidence": 0.0}
 
     score = 0.0
-
-    # Price vs SMA
     if current_price > sma_5:
       score += 0.4
     else:
       score -= 0.2
 
-    # RSI
     if 45 <= rsi_14 <= 65:
       score += 0.3
     elif rsi_14 < 30:
@@ -113,11 +107,10 @@ class AIAnalyticsEngine:
 
     if score >= 0.5:
       return {"signal": 1, "confidence": min(0.95, 0.60 + score * 0.35)}
-
     return {"signal": 0, "confidence": min(0.95, 0.50 + abs(score) * 0.20)}
 
 
-# ৪. রিস্ক ম্যানেজমেন্ট ও পজিশন সাইজিং
+# ৪. রিস্ক ম্যানেজমেন্ট সিস্টেম
 class RiskManagementSystem:
 
   def __init__(self, max_risk_per_trade_pct=0.02):
@@ -133,7 +126,7 @@ class RiskManagementSystem:
     return risk_amount / price_difference
 
 
-# ৫. ফাইন্যান্সিয়াল লেজার ও ট্র্যাকিং সিস্টেম
+# ৫. ফাইন্যান্সিয়াল লেজার সিস্টেম
 class FinancialLedger:
 
   def __init__(self, initial_balance):
@@ -149,31 +142,14 @@ class FinancialLedger:
     trade_record = {
         "trade_id": trade_id,
         "asset": asset,
-        "gross_pnl": gross_pnl,
-        "commission": commission,
         "net_pnl": net_pnl,
         "closing_balance": self.balance,
     }
     self.trades_history.append(trade_record)
     return trade_record
 
-  def get_summary(self):
-    total_profit = sum(
-        t["net_pnl"] for t in self.trades_history if t["net_pnl"] > 0
-    )
-    total_loss = sum(
-        t["net_pnl"] for t in self.trades_history if t["net_pnl"] < 0
-    )
-    return {
-        "current_balance": self.balance,
-        "total_trades": len(self.trades_history),
-        "total_profit": total_profit,
-        "total_loss": total_loss,
-        "net_pnl": total_profit + total_loss,
-    }
 
-
-# ৬. মোবাইল অ্যাপ ইউজার ইন্টারফেস (Kivy GUI + Paper Trading)
+# ৬. মোবাইল অ্যাপ ইউজার ইন্টারফেস (Kivy GUI)
 class TradingAppLayout(BoxLayout):
 
   def __init__(self, **kwargs):
@@ -182,7 +158,6 @@ class TradingAppLayout(BoxLayout):
     self.padding = 20
     self.spacing = 10
 
-    # Duplicate trade prevention flags
     self.position_open = False
     self.last_signal_time = 0
 
@@ -200,10 +175,7 @@ class TradingAppLayout(BoxLayout):
     self.add_widget(self.price_label)
 
     self.balance_label = Label(
-        text="Balance: $5000.00",
-        font_size=18,
-        size_hint_y=None,
-        height=40,
+        text="Balance: $5000.00", font_size=18, size_hint_y=None, height=40
     )
     self.add_widget(self.balance_label)
 
@@ -236,12 +208,10 @@ class TradingAppLayout(BoxLayout):
     Clock.schedule_interval(self.update_dashboard, 1.0)
 
   def speak_message(self, message):
-    print(f"[Log / Output]: {message}")
     self.log_input.text += f"\n[System]: {message}"
 
   def listen_voice_command(self, instance):
-    spoken_command = "start"
-    self.log_input.text += f"\n[Voice Input Detected]: {spoken_command}"
+    self.log_input.text += "\n[Voice Input Detected]: start"
     self.status_label.text = "Status: Running via Voice Command!"
     self.speak_message("Bot activated.")
 
@@ -256,7 +226,6 @@ class TradingAppLayout(BoxLayout):
         )
         signal = self.ai_engine.predict_signal(features)
 
-        # Check signal along with position guard to avoid spamming trades
         if (
             signal["signal"] == 1
             and signal["confidence"] > 0.6
@@ -264,10 +233,10 @@ class TradingAppLayout(BoxLayout):
         ):
           self.position_open = True
           self.last_signal_time = time.time()
-
           self.status_label.text = (
               f"Signal: BUY (Conf: {signal['confidence']:.2f})"
           )
+
           stop_loss_price = current_price - 500
           position_size = self.risk_mgr.calculate_position_size(
               self.ledger.balance, current_price, stop_loss_price
