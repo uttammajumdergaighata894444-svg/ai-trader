@@ -10,7 +10,7 @@ source.dir = .
 source.exclude_exts = spec
 source.include_exts = py,png,jpg,kv,atlas
 
-requirements = python3,kivy,numpy,websocket-client
+requirements = python3,kivy,websocket-client
 
 orientation = portrait
 
